@@ -1,7 +1,7 @@
 BIN_DIR = $(CURDIR)/bin
 
 install.tools:
-	GOBIN=$(BIN_DIR) go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+	GOBIN=$(BIN_DIR) go install ../protoc-gen-grpc-gateway
 	GOBIN=$(BIN_DIR) go install ../protoc-gen-openapiv2
 
 .PHONY: proto.gen
