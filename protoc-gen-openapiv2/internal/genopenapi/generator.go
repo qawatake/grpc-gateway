@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/internal/descriptor"
@@ -20,7 +21,6 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/pluginpb"
-	"gopkg.in/yaml.v3"
 )
 
 var errNoTargetService = errors.New("no target service defined in the file")
@@ -146,22 +146,28 @@ func (po openapiPathsObject) MarshalJSON() ([]byte, error) {
 // openapiPathsObject is marshalled into expected format in generated
 // swagger.yaml.
 func (po openapiPathsObject) MarshalYAML() (interface{}, error) {
-	var pathObjectNode yaml.Node
-	pathObjectNode.Kind = yaml.MappingNode
-
-	for _, pathData := range po {
-		var pathNode, pathItemObjectNode yaml.Node
-
-		pathNode.SetString(pathData.Path)
-		b, err := yaml.Marshal(pathData.PathItemObject)
-		if err != nil {
-			return nil, err
+	// TODO: Hack Comment
+	// define fields of new struct
+	newStructFields := make([]reflect.StructField, 0, len(po))
+	for i, item := range po {
+		newStructField := reflect.StructField{
+			Name: "Path" + strconv.FormatInt(int64(i), 10),
+			Type: reflect.ValueOf(item.PathItemObject).Type(),
+			Tag:  reflect.StructTag(fmt.Sprintf("yaml:%q", item.Path)),
 		}
-		pathItemObjectNode.SetString(string(b))
-		pathObjectNode.Content = append(pathObjectNode.Content, &pathNode, &pathItemObjectNode)
+		newStructFields = append(newStructFields, newStructField)
 	}
 
-	return pathObjectNode, nil
+	newStructType := reflect.StructOf(newStructFields)
+	newStruct := reflect.New(newStructType).Elem()
+
+	// fill
+	for i, item := range po {
+		newStructValue := newStruct.FieldByIndex([]int{i})
+		value := item.PathItemObject
+		newStructValue.Set(reflect.ValueOf(value))
+	}
+	return newStruct.Interface(), nil
 }
 
 func (so openapiInfoObject) MarshalJSON() ([]byte, error) {
